@@ -676,6 +676,78 @@ expected_statuscode (const char *reply, const char *statuscodes)
   return result;
 }
 
+char *
+parse_chunked_page (const char *raw_body)
+{
+  char *parsed_body = malloc(strlen(raw_body));
+  if (!parsed_body)
+    die (STATE_UNKNOWN, _("HTTP_UNKOWN - Memory allocation error\n"));
+
+  unsigned long int chunksize;
+  char *raw_body_pos;
+  char *parsed_body_pos;
+
+  raw_body_pos = (char *)raw_body;
+  parsed_body_pos = parsed_body;
+  while(chunksize = strtoul(raw_body_pos, NULL, 16)) {
+    // soak up the optional chunk params (which we will ignore)
+    for (; *raw_body_pos && *raw_body_pos != '\r' && *raw_body_pos != '\n'; raw_body_pos++)
+      ;
+
+    raw_body_pos += 2; // soak up the leading CRLF
+
+    strncpy(parsed_body_pos, raw_body_pos, chunksize);
+
+    parsed_body_pos += chunksize;
+    raw_body_pos += chunksize;
+    raw_body_pos += 2; // soak up the ending CRLF
+  }
+  *parsed_body_pos = '\0';
+
+  return parsed_body;
+}
+
+static int
+chunked_transfer_encoding (const char *headers)
+{
+  const char *header_field = "Transfer-Encoding:";
+  const char *header_value_start;
+  char *header_value_end;
+  char *s;
+
+  // no Transfer-Encoding header is present
+  s = strstr(headers, header_field);
+  if (s == NULL)
+    return 0;
+
+  // Find the end of the header field
+  while(*s && !isspace(*s) && *s != ':')
+    s++;
+
+  // Soak up the whitespace between the header field and value
+  while (*s && isspace(*s))
+    s++;
+
+  // Find the end of the header value
+  for (header_value_start = s, header_value_end = s; *header_value_end && *header_value_end != '\r' && *header_value_end != '\n'; header_value_end++)
+    ;
+
+  char *header_value = (char *) malloc((header_value_end - header_value_start) + 1);
+  if (!header_value)
+    die (STATE_UNKNOWN, _("HTTP_UNKOWN - Memory allocation error\n"));
+  strncpy(header_value, header_value_start, (header_value_end - header_value_start));
+
+  header_value[header_value_end - header_value_start + 1] = '\0';
+
+  s = strstr(header_value, "chunked");
+  free(header_value);
+  if (s) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
 static int
 check_document_dates (const char *headers, char **msg)
 {
@@ -1137,6 +1209,11 @@ check_http (void)
     }
   }
 
+  if (chunked_transfer_encoding(header)) {
+    // TODO: Fix memory leak (the old page isn't freed)
+    // (not that it matters... it runs very short)
+    page = parse_chunked_page(page);
+  }
 
   if (strlen (string_expect)) {
     if (!strstr (page, string_expect)) {
