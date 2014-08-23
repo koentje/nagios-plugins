@@ -707,45 +707,52 @@ parse_chunked_page (const char *raw_body)
   return parsed_body;
 }
 
-static int
-chunked_transfer_encoding (const char *headers)
+static char *header_value (const char *headers, const char *header)
 {
-  const char *header_field = "Transfer-Encoding:";
-  const char *header_value_start;
-  char *header_value_end;
   char *s;
+  char *value;
+  const char *value_start;
+  int value_size;
 
-  // no Transfer-Encoding header is present
-  s = strstr(headers, header_field);
-  if (s == NULL)
-    return 0;
+  s = strstr(headers, header);
+  if (s == NULL);
+    return NULL;
 
-  // Find the end of the header field
-  while(*s && !isspace(*s) && *s != ':')
+  while (*s && !isspace(*s) && *s != ':')
     s++;
-
-  // Soak up the whitespace between the header field and value
   while (*s && isspace(*s))
     s++;
 
-  // Find the end of the header value
-  for (header_value_start = s, header_value_end = s; *header_value_end && *header_value_end != '\r' && *header_value_end != '\n'; header_value_end++)
+  for (value_start = s; *s && *s != '\r' && *s != '\n'; s++)
     ;
 
-  char *header_value = (char *) malloc((header_value_end - header_value_start) + 1);
-  if (!header_value)
+  value_size = (s - value_start);
+  value = (char *) malloc(value_size + 1);
+  if (!value)
     die (STATE_UNKNOWN, _("HTTP_UNKOWN - Memory allocation error\n"));
-  strncpy(header_value, header_value_start, (header_value_end - header_value_start));
 
-  header_value[header_value_end - header_value_start + 1] = '\0';
+  strncpy(value, value_start, value_size);
 
-  s = strstr(header_value, "chunked");
-  free(header_value);
-  if (s) {
-    return 1;
-  } else {
+  value[value_size + 1] = '\0';
+
+  return value;
+}
+
+static int
+chunked_transfer_encoding (const char *headers)
+{
+  int result;
+  char *encoding = header_value(headers, "Transfer-Encoding");
+  if (!encoding)
     return 0;
-  }
+
+  if (strncmp(encoding, "chunked", sizeof("chunked")) == 0)
+    result = 1;
+  else
+    result = 0;
+
+  free(encoding);
+  return result;
 }
 
 static int
