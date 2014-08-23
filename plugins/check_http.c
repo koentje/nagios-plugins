@@ -1134,8 +1134,8 @@ check_http (void)
   header[pos - header] = 0;
 
   if (chunked_transfer_encoding(header)) {
-    // TODO: Fix memory leak (the old page isn't freed)
-    // (not that it matters... it runs very short)
+    // FIXME: memory leak (the old page isn't freed)
+    // not that it matters...
     page = decode_chunked_page(page);
   }
 
