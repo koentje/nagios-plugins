@@ -720,6 +720,8 @@ static char *header_value (const char *headers, const char *header)
 
   while (*s && !isspace(*s) && *s != ':')
     s++;
+  if (*s && *s == ':')
+    s++;
   while (*s && isspace(*s))
     s++;
 
