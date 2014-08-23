@@ -677,34 +677,34 @@ expected_statuscode (const char *reply, const char *statuscodes)
 }
 
 char *
-parse_chunked_page (const char *raw_body)
+decode_chunked_page (const char *raw)
 {
-  char *parsed_body = malloc(strlen(raw_body));
-  if (!parsed_body)
+  char *decoded = malloc(strlen(raw));
+  if (!decoded)
     die (STATE_UNKNOWN, _("HTTP_UNKOWN - Memory allocation error\n"));
 
   unsigned long int chunksize;
-  char *raw_body_pos;
-  char *parsed_body_pos;
+  char *raw_pos;
+  char *decoded_pos;
 
-  raw_body_pos = (char *)raw_body;
-  parsed_body_pos = parsed_body;
-  while(chunksize = strtoul(raw_body_pos, NULL, 16)) {
+  raw_pos = (char *)raw;
+  decoded_pos = decoded;
+  while (chunksize = strtoul(raw_pos, NULL, 16)) {
     // soak up the optional chunk params (which we will ignore)
-    for (; *raw_body_pos && *raw_body_pos != '\r' && *raw_body_pos != '\n'; raw_body_pos++)
+    for (; *raw_pos && *raw_pos != '\r' && *raw_pos != '\n'; raw_pos++)
       ;
 
-    raw_body_pos += 2; // soak up the leading CRLF
+    raw_pos += 2; // soak up the leading CRLF
 
-    strncpy(parsed_body_pos, raw_body_pos, chunksize);
+    strncpy(decoded_pos, raw_pos, chunksize);
 
-    parsed_body_pos += chunksize;
-    raw_body_pos += chunksize;
-    raw_body_pos += 2; // soak up the ending CRLF
+    decoded_pos += chunksize;
+    raw_pos += chunksize;
+    raw_pos += 2; // soak up the ending CRLF
   }
-  *parsed_body_pos = '\0';
+  *decoded_pos = '\0';
 
-  return parsed_body;
+  return decoded;
 }
 
 static char *header_value (const char *headers, const char *header)
@@ -1219,7 +1219,7 @@ check_http (void)
   if (chunked_transfer_encoding(header)) {
     // TODO: Fix memory leak (the old page isn't freed)
     // (not that it matters... it runs very short)
-    page = parse_chunked_page(page);
+    page = decode_chunked_page(page);
   }
 
   if (strlen (string_expect)) {
