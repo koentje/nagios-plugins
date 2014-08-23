@@ -715,7 +715,7 @@ static char *header_value (const char *headers, const char *header)
   int value_size;
 
   s = strstr(headers, header);
-  if (s == NULL);
+  if (s == NULL)
     return NULL;
 
   while (*s && !isspace(*s) && *s != ':')
