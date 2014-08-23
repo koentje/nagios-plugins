@@ -677,18 +677,14 @@ expected_statuscode (const char *reply, const char *statuscodes)
 }
 
 char *
-decode_chunked_page (const char *raw)
+decode_chunked_page (const char *raw, char *dst)
 {
-  char *decoded = malloc(strlen(raw));
-  if (!decoded)
-    die (STATE_UNKNOWN, _("HTTP_UNKOWN - Memory allocation error\n"));
-
   unsigned long int chunksize;
   char *raw_pos;
-  char *decoded_pos;
+  char *dst_pos;
 
   raw_pos = (char *)raw;
-  decoded_pos = decoded;
+  dst_pos = dst;
   while (chunksize = strtoul(raw_pos, NULL, 16)) {
     // soak up the optional chunk params (which we will ignore)
     for (; *raw_pos && *raw_pos != '\r' && *raw_pos != '\n'; raw_pos++)
@@ -696,15 +692,15 @@ decode_chunked_page (const char *raw)
 
     raw_pos += 2; // soak up the leading CRLF
 
-    strncpy(decoded_pos, raw_pos, chunksize);
+    strncpy(dst_pos, raw_pos, chunksize);
 
-    decoded_pos += chunksize;
+    dst_pos += chunksize;
     raw_pos += chunksize;
     raw_pos += 2; // soak up the ending CRLF
   }
-  *decoded_pos = '\0';
+  *dst_pos = '\0';
 
-  return decoded;
+  return dst;
 }
 
 static char *header_value (const char *headers, const char *header)
@@ -1133,11 +1129,8 @@ check_http (void)
   page += (size_t) strspn (page, "\r\n");
   header[pos - header] = 0;
 
-  if (chunked_transfer_encoding(header)) {
-    // FIXME: memory leak (the old page isn't freed)
-    // not that it matters...
-    page = decode_chunked_page(page);
-  }
+  if (chunked_transfer_encoding(header))
+    page = decode_chunked_page(page, page);
 
   if (verbose)
     printf ("**** HEADER ****\n%s\n**** CONTENT ****\n%s\n", header,
