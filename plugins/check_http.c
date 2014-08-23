@@ -1132,6 +1132,13 @@ check_http (void)
   }
   page += (size_t) strspn (page, "\r\n");
   header[pos - header] = 0;
+
+  if (chunked_transfer_encoding(header)) {
+    // TODO: Fix memory leak (the old page isn't freed)
+    // (not that it matters... it runs very short)
+    page = decode_chunked_page(page);
+  }
+
   if (verbose)
     printf ("**** HEADER ****\n%s\n**** CONTENT ****\n%s\n", header,
                 (no_body ? "  [[ skipped ]]" : page));
@@ -1216,12 +1223,6 @@ check_http (void)
       xasprintf (&msg, _("%sheader '%s' not found on '%s://%s:%d%s', "), msg, output_header_search, use_ssl ? "https" : "http", host_name ? host_name : server_address, server_port, server_url);
       result = STATE_CRITICAL;
     }
-  }
-
-  if (chunked_transfer_encoding(header)) {
-    // TODO: Fix memory leak (the old page isn't freed)
-    // (not that it matters... it runs very short)
-    page = decode_chunked_page(page);
   }
 
   if (strlen (string_expect)) {
