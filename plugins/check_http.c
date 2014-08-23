@@ -735,7 +735,7 @@ static char *header_value (const char *headers, const char *header)
 
   strncpy(value, value_start, value_size);
 
-  value[value_size + 1] = '\0';
+  value[value_size] = '\0';
 
   return value;
 }
